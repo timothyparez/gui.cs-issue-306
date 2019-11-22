@@ -40,9 +40,10 @@ namespace Terminal.Gui.Issue306
 
             button.Clicked += () =>
             {
-                Application.MainLoop.Invoke(async () =>
+                Application.MainLoop.Invoke(() =>
                 {
-                    listView.SetSource(await LoadDataAsync());
+                    var items = Task.Run(async () => await LoadDataAsync()).Result;
+                    listView.SetSource(items);
                 });
             };
 
