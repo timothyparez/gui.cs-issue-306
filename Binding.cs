@@ -2,11 +2,15 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
-using System.Text;
-using NStack;
 
 namespace Terminal.Gui.Issue306
 {
+    public interface IValueConverter
+    {
+        object Convert(object value, object parameter = null);
+        
+    }
+
     public class Binding
     {
         public View Target {get; private set;}
@@ -17,7 +21,9 @@ namespace Terminal.Gui.Issue306
 
         private object sourceDataContext;
         private PropertyInfo sourceBindingProperty;
-        public Binding(View source, string sourcePropertyName, View target, string targetPropertyName)
+        private IValueConverter valueConverter;
+
+        public Binding(View source, string sourcePropertyName, View target, string targetPropertyName, IValueConverter valueConverter = null)
         {
             Target = target;
             Source = source;
@@ -25,6 +31,7 @@ namespace Terminal.Gui.Issue306
             TargetPropertyName = targetPropertyName;
             sourceDataContext = Source.GetType().GetProperty("DataContext").GetValue(Source);
             sourceBindingProperty = sourceDataContext.GetType().GetProperty(SourcePropertyName);
+            this.valueConverter = valueConverter;
             UpdateTarget();
 
             var notifier = ((INotifyPropertyChanged)sourceDataContext);
@@ -46,15 +53,20 @@ namespace Terminal.Gui.Issue306
             {                            
                 var sourceValue = sourceBindingProperty.GetValue(sourceDataContext);
                 if (sourceValue == null)
+                {
                     return;
-
-                var targetProperty = Target.GetType().GetProperty(TargetPropertyName);
-                var bytes = Encoding.ASCII.GetBytes(sourceValue.ToString());
-                targetProperty.SetValue(Target, ustring.Make(bytes));                
+                }
+                
+                var finalValue = valueConverter?.Convert(sourceValue) ?? sourceValue;
+               
+                var targetProperty = Target.GetType().GetProperty(TargetPropertyName);                
+                targetProperty.SetValue(Target, finalValue);                
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Binding failed: {ex}");
+                
+                throw;
             }
         }
     }
