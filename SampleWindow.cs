@@ -6,29 +6,8 @@ using System.Threading.Tasks;
 
 namespace Terminal.Gui.Issue306
 {
-    public class ViewModel : INotifyPropertyChanged
-    {
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        private string text;
-
-        public string Text
-        {
-            get => text;
-            set 
-            {
-                if (value != text)
-                {
-                    text = value;
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Text)));
-                }
-            }
-        }
-    }
-
     public class SampleWindow : Window
-    {
-        public List<Person> People {get; set;}
+    {        
 
         public ViewModel DataContext {get; set;}
 
@@ -36,6 +15,7 @@ namespace Terminal.Gui.Issue306
         private Label label;
         private Label label2;
         private Button button;
+        private HeroDatabase database;
 
 
         public SampleWindow(string title, int padding)
@@ -47,19 +27,11 @@ namespace Terminal.Gui.Issue306
         public SampleWindow(string title)
             : base(title)
         {
-            People = new List<Person>()
-            {
-                new Person("Bruce", "Wayne", "Batman"),
-                new Person("Barry", "Allen", "The Flash"),
-                new Person("Clark", "Kent", "Sueperman"),
-                new Person("Tony", "Stark", "Iron Man"),
-                new Person("Peter", "Parker", "Spiderman"),
-                new Person("Miguel", "De Icaza", "Monoman")
-            }; 
+            database = new HeroDatabase("heroes.sqlite");
 
             DataContext = new ViewModel();
 
-            listView = new ListView(new List<Person>());
+            listView = new ListView(new List<Hero>());
             listView.X = 1;
             listView.Y = 5;
             listView.Width = Dim.Fill();
@@ -81,16 +53,30 @@ namespace Terminal.Gui.Issue306
 #if WORKAROUND                                                                                                                 
                 Application.MainLoop.Invoke(() =>
                 {            
-                    var source = Task.Run(async () => await LoadDataAsync()).Result;  
-                    listView.SetSource(source);
-                    DataContext.Text = $"Data Load Count: {x++}";                    
+                    if (!database.Initialized)
+                    {
+                        DataContext.Text = "Database not ready";
+                    }
+                    else
+                    {
+                        var source = Task.Run(async () => await LoadDataAsync()).Result;  
+                        listView.SetSource(source);
+                        DataContext.Text = $"Data Load Count: {x++}";                    
+                    }
                 });
 #else 
                 Application.MainLoop.Invoke(async () =>
-                {            
-                    var source = await LoadDataAsync();  
-                    listView.SetSource(source);
-                    DataContext.Text = $"Data Load Count: {x++}";                    
+                {                                
+                    if (!database.Initialized)
+                    {
+                        DataContext.Text = "Database not ready";
+                    }
+                    else
+                    {
+                        var source = await LoadDataAsync();  
+                        listView.SetSource(source);
+                        DataContext.Text = $"Data Load Count: {x++}";                    
+                    }
                 });             
 #endif
                 
@@ -99,10 +85,10 @@ namespace Terminal.Gui.Issue306
             this.Add(button, label, label2, listView);             
         }
 
-        public async Task<List<Person>> LoadDataAsync()
+        public async Task<List<Hero>> LoadDataAsync()
         {
-            await Task.Delay(2000);
-            return People;
+            return await database.ListHeroesAsync();            
         }
     }
+
 }
